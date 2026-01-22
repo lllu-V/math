@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>可视化数学模型</title> 
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6', 
+                        secondary: '#10B981', 
+                        accent: '#8B5CF6', 
+                        dark: '#1E293B',
+                        light: '#F8FAFC'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        math: ['STIXGeneral', 'serif']
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-transform-slow {
+                transition: transform 0.5s ease-in-out;
+            }
+            .bg-gradient-math {
+                background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+            }
+        }
+   </style>
+
+
+    <style>
+        .modal-transition {
+            transition: opacity 0.3s ease;
+        }
+        .modal-transition > div {
+            transition: transform 0.3s ease;
+        }
+
+        #hero-canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+    </style>
+</head>
+<link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    initHeroVisualization();
+
+
+    // 二次函数
+    bindModalEvent(
+        document.querySelector('[data-model="quadratic"]').closest('.model-card').querySelector('a'),
+        'detailModal'
+    );
+    // 微积分基础
+    bindModalEvent(
+        document.getElementById('showCalculusDetailBtn'),
+        'calculusDetailModal'
+    );
+    // 导数与切线
+    bindModalEvent(
+        document.querySelector('[data-model="derivative"]').closest('.model-card').querySelector('a'),
+        'derivativeDetailModal'
+    );
+    // 正态分布
+    bindModalEvent(
+        document.querySelector('[data-model="normal"]').closest('.model-card').querySelector('a'),
+        'normalDetailModal'
+    );
+    // 三维曲面
+    bindModalEvent(
+        document.querySelector('[data-model="surface"]').closest('.model-card').querySelector('a'),
+        '3dDetailModal'
+    );
+    // 傅里叶级数
+    bindModalEvent(
+        document.querySelector('[data-model="fourier"]').closest('.model-card').querySelector('a'),
+        'fourierDetailModal'
+    );
+
+     // 二次函数关闭按钮
+    bindCloseModalEvent('closeModalBtn', 'detailModal');
+    // 微积分基础关闭按钮
+    bindCloseModalEvent('closeCalculusModalBtn', 'calculusDetailModal');
+    // 导数与切线关闭按钮
+    bindCloseModalEvent('closeDerivativeModalBtn', 'derivativeDetailModal');
+    // 正态分布关闭按钮
+    bindCloseModalEvent('closeNormalModalBtn', 'normalDetailModal');
+    // 三维曲面关闭按钮
+    bindCloseModalEvent('close3dModalBtn', '3dDetailModal');
+    // 傅里叶级数关闭按钮
+    bindCloseModalEvent('closeFourierModalBtn', 'fourierDetailModal');
+
+     const modals = document.querySelectorAll('[id$="DetailModal"], #detailModal');
+    modals.forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal(modal);
+            }
+        });
+    });
+});
+
+function initHeroVisualization() {
+
+    const container = document.getElementById('hero-visualization');
+    const canvas = document.createElement('canvas');
+    canvas.id = 'hero-canvas';
+    container.appendChild(canvas);
+
+    // 核心变量
+    let ctx = canvas.getContext('2d');
+    let w, h, t = 0;
+
+    // 适配容器大小
+    function resizeCanvas() {
+        w = container.clientWidth;
+        h = container.clientHeight;
+        canvas.width = w;
+        canvas.height = h;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // 绘制李萨如曲线（适配页面配色）
+    function drawLissajous() {
+        ctx.clearRect(0, 0, w, h);
+        
+        // 适配页面渐变配色
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        // 动态参数（适配容器大小）
+        const a = 3 + Math.sin(t/20) * 2;
+        const b = 4 + Math.cos(t/15) * 2;
+        const scale = Math.min(w, h) / 3.5; // 缩小一点，适配容器
+
+        // 绘制曲线
+        for (let i = 0; i < Math.PI * 2; i += 0.01) {
+            const x = w/2 + Math.sin(a * i) * scale;
+            const y = h/2 + Math.sin(b * i) * scale;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 中心点（白色高亮）
+        ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+        ctx.beginPath();
+        ctx.arc(w/2, h/2, 4, 0, Math.PI*2);
+        ctx.fill();
+
+        // 更新时间参数
+        t += 0.05;
+    }
+
+    // 动画循环
+    function animate() {
+        requestAnimationFrame(animate);
+        drawLissajous();
+    }
+    animate();
+}
+
+// 原有弹窗相关函数
+function bindModalEvent(btn, modalId) {
+    if (!btn || !modalId) return;
+    btn.addEventListener('click', function(e) {
+        e.preventDefault();
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            // 显示弹窗并添加动画
+            modal.classList.remove('hidden');
+            // 延迟添加动画类，触发transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('div').classList.remove('scale-95');
+                modal.querySelector('div').classList.add('scale-100');
+            }, 10);
+        }
+    });
+}
+
+function bindCloseModalEvent(closeBtnId, modalId) {
+    const closeBtn = document.getElementById(closeBtnId);
+    const modal = document.getElementById(modalId);
+    if (!closeBtn || !modal) return;
+    
+    closeBtn.addEventListener('click', function() {
+        closeModal(modal);
+    });
+}
+
+function closeModal(modal) {
+    // 先添加淡出动画
+    modal.classList.add('opacity-0');
+    modal.querySelector('div').classList.remove('scale-100');
+    modal.querySelector('div').classList.add('scale-95');
+    
+    // 动画结束后隐藏弹窗
+    setTimeout(() => {
+        modal.classList.add('hidden');
+    }, 300); // 与CSS transition-duration（300ms）保持一致
+}
+</script>
+
+<body class="bg-light text-dark font-sans antialiased">
+    <!-- 导航栏 -->
+      <header id="navbar" class="fixed w-full top-0 z-50 transition-all duration-300 bg-white/90 backdrop-blur-sm shadow-sm">
+          <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+              <div class="flex items-center space-x-2">
+                  <i class="fa fa-calculator text-primary text-2xl"></i>
+                  <h1 class="text-xl md:text-2xl font-bold text-primary">可视化数学模型</h1>
+              </div>
+            <!-- 桌面导航 -->
+            <nav class="hidden md:flex items-center space-x-8">
+                <a href="#home" class="font-medium hover:text-primary transition-colors">首页</a>
+                <a href="#models" class="font-medium hover:text-primary transition-colors">模型库</a>
+                <a href="#interactive" class="font-medium hover:text-primary transition-colors">可视化演示</a>
+           </nav>
+
+            <!-- 移动端菜单按钮 -->
+            <button id="menu-toggle" class="md:hidden text-dark focus:outline-none">
+                <i class="fa fa-bars text-xl"></i>
+            </button>
+        </div>
+
+        <!-- 移动端导航菜单 -->
+        <div id="mobile-menu" class="md:hidden hidden bg-white border-t">
+            <div class="container mx-auto px-4 py-2 flex flex-col space-y-3">
+                <a href="#home" class="py-2 font-medium hover:text-primary transition-colors">首页</a>
+                <a href="#models" class="py-2 font-medium hover:text-primary transition-colors">模型库</a>
+                <a href="#interactive" class="py-2 font-medium hover:text-primary transition-colors">可视化演示</a>
+          </div>
+        </div>
+    </header>
+   <!-- 主内容区 -->
+    <main>
+        <!-- 英雄区域 -->
+        <section id="home" class="pt-24 pb-16 md:pt-32 md:pb-24 bg-gradient-math text-white">
+            <div class="container mx-auto px-4">
+                <div class="flex flex-col md:flex-row items-center">
+                    <div class="md:w-1/2 mb-10 md:mb-0">
+                        <h2 class="text-[clamp(2rem,5vw,3.5rem)] font-bold leading-tight text-shadow mb-6">
+                            探索数学的<br>视觉之美
+                        </h2>
+                        <p class="text-lg md:text-xl mb-8 text-white/90 max-w-lg">
+                            通过交互式可视化，让复杂的数学模型变得直观易懂，发现数学背后的奥秘与美感。
+                        </p>
+                        <div class="flex flex-wrap gap-4">
+                         </div>
+                    </div>
+                    <div class="md:w-1/2 relative">
+                        <!-- 动态数学图形容器（已插入Canvas） -->
+                        <div id="hero-visualization" class="w-full h-[300px] md:h-[400px] rounded-xl shadow-2xl overflow-hidden bg-white/10 backdrop-blur-sm p-4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
+        <!-- 模型库部分 -->
+        <section id="models" class="py-16 md:py-24 bg-white">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-16">
+                    <h2 class="text-[clamp(1.8rem,4vw,2.5rem)] font-bold mb-4">数学模型库</h2>
+                    <p class="text-gray-600 max-w-2xl mx-auto text-lg">
+                        我们收集了各种经典的数学模型，通过可视化方式呈现，帮助您更好地理解数学概念。
+                    </p>
+                </div>
+               <!-- 模型卡片网格 -->
+               <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+<!-- 模型卡片1：二次函数 -->
+<div class="model-card group" data-category="algebra">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2">
+        <div class="h-0 bg-gray-100 relative overflow-hidden">
+            <canvas class="model-preview" data-model="quadratic"></canvas>
+        </div>
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">二次函数</h3>
+            <p class="text-gray-600 mb-4">展示二次函数 \( f(x) = ax^2 + bx + c \) 的图像及其性质，包括顶点、对称轴和开口方向。</p>
+            <a href="#" class="inline-flex items-center text-primary font-medium hover:underline">
+                查看详情 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+               <div id="detailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-transition opacity-0">
+                  <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 transform transition-all duration-300 scale-95">
+                         <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+                                <i class="fa fa-times text-xl"></i>
+                         </button>
+
+                         <div class="mb-6">
+                               <h2 class="text-2xl font-bold text-gray-800 mb-4">二次函数完整解析</h2>
+                               <div class="space-y-4 text-gray-700">
+                                       <section>
+                                               <h3 class="text-xl font-semibold text-primary mb-2">1. 基本定义</h3>
+                                               <p>一般地，把形如 \( y = ax^2 + bx + c \)（\( a \neq 0 \)，\( a、b、c \) 是常数）的函数叫做二次函数，其中 \( a \) 称为二次项系数，\( b \) 为一次项系数，\( c \) 为常数项。x 是自变量，y 是因变量。</p>
+                                       </section>  
+
+                                       <section>
+                                              <h3 class="text-xl font-semibold text-primary mb-2">2. 图像与核心性质</h3>
+                                              <ul class="list-disc pl-6 space-y-2">
+                                              <li><strong>图像形状</strong>：抛物线（轴对称图形）</li>
+                                              <li><strong>开口方向</strong>：\( a > 0 \) 时开口向上，\( a < 0 \) 时开口向下；\(|a|\) 越大，开口越窄</li>
+                                              <li><strong>对称轴</strong>：直线 \( x = -\frac{b}{2a} \)</li>
+                                              <li><strong>顶点坐标</strong>：\( \left(-\frac{b}{2a}, \frac{4ac - b^2}{4a}\right) \)（最值点）</li>
+                                              <li><strong>与y轴交点</strong>：\( (0, c) \)</li>
+                                         </ul>
+                                       </section>
+
+                                       <section>
+                                              <h3 class="text-xl font-semibold text-primary mb-2">3. 常见表达式形式</h3>
+                                              <ul class="list-disc pl-6 space-y-2">
+                                              <li><strong>一般式</strong>：\( y = ax^2 + bx + c \)（\( a \neq 0 \)）</li>
+                                              <li><strong>顶点式</strong>：\( y = a(x - h)^2 + k \)（顶点为 \( (h, k) \)）</li>
+                                              <li><strong>交点式</strong>：\( y = a(x - x_1)(x - x_2) \)（与x轴交点为 \( (x_1, 0)、(x_2, 0) \)）</li>
+                                         </ul>
+                                       </section>
+                                    </div>
+                                </div>
+                           </div>
+                       </div>
+
+<!-- 模型卡片2：微积分基础 -->
+<div class="model-card group" data-category="calculus">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2">
+        <div class="h-0 bg-gray-100 relative overflow-hidden">
+            <canvas class="model-preview" data-model="calculus"></canvas>
+        </div>
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">微积分基础</h3>
+            <p class="text-gray-600 mb-4">展示微积分核心概念，包括导数 \( f'(x) = \lim_{\Delta x \to 0}\frac{f(x+\Delta x)-f(x)}{\Delta x} \) 与定积分 \( \int_{a}^{b}f(x)dx \) 的几何意义。</p>
+            <a id="showCalculusDetailBtn" class="inline-flex items-center text-primary font-medium hover:underline cursor-pointer">
+                查看详情 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="calculusDetailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-transition opacity-0">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 transform transition-all duration-300 scale-95">
+        <button id="closeCalculusModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+            <i class="fa fa-times text-xl"></i>
+        </button>
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">微积分基础完整解析</h2>
+            <div class="space-y-4 text-gray-700">
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">1. 基本定义</h3>
+                    <p>微积分是研究函数的微分、积分以及有关概念和应用的数学分支，核心分为微分学和积分学两部分，二者通过微积分基本定理建立紧密联系。</p>
+                    <p class="mt-2">微分学主要研究函数的变化率（导数），积分学主要研究函数的累积效应（积分），共同构成了分析函数性质、解决实际问题的强大工具。</p>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">2. 核心概念与几何意义</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>导数</strong>：函数 \( y = f(x) \) 在某点的导数 \( f'(x) \) 表示该点处函数图像的切线斜率，反映函数在该点的瞬时变化率，定义式为 \( f'(x) = \lim_{\Delta x \to 0}\frac{f(x+\Delta x)-f(x)}{\Delta x} \)。</li>
+                        <li><strong>定积分</strong>：\( \int_{a}^{b}f(x)dx \) 表示由函数 \( f(x) \)、x轴以及直线 \( x = a \)、\( x = b \) 所围成的曲边梯形的面积代数和（x轴上方为正，下方为负）。</li>
+                        <li><strong>微积分基本定理</strong>：若 \( F(x) \) 是 \( f(x) \) 在区间 \([a,b]\) 上的一个原函数，则 \( \int_{a}^{b}f(x)dx = F(b) - F(a) \)，建立了微分与积分的互逆关系。</li>
+                    </ul>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">3. 常见应用场景</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li><strong>微分应用</strong>：求解函数的极值、最值，分析函数的单调性与凹凸性，解决瞬时速度、加速度等物理问题。</li>
+                        <li><strong>积分应用</strong>：计算不规则图形的面积、几何体的体积，求解变力做功、液体压力等物理量，处理概率统计中的分布问题。</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模型卡片3：导数与切线 -->
+<div class="model-card group" data-category="calculus">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2">
+        <div class="h-0 bg-gray-100 relative overflow-hidden">
+            <canvas class="model-preview" data-model="derivative"></canvas>
+        </div>
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">导数与切线</h3>
+            <p class="text-gray-600 mb-4">可视化函数的导数概念，展示曲线上某点的切线如何反映函数在该点的变化率。</p>
+            <a href="#" class="inline-flex items-center text-primary font-medium hover:underline">
+                查看详情 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="derivativeDetailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-transition opacity-0">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 transform transition-all duration-300 scale-95">
+        <button id="closeDerivativeModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+            <i class="fa fa-times text-xl"></i>
+        </button>
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">导数与切线完整解析</h2>
+            <div class="space-y-4 text-gray-700">
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">1. 核心定义</h3>
+                    <p>导数的几何意义是函数图像在某点处<strong>切线的斜率</strong>：对于函数 \( y=f(x) \)，在点 \( P(x_0, f(x_0)) \) 处的切线斜率 \( k = f'(x_0) \)，其中：</p>
+                    <p class="mt-2 font-medium">\[ f'(x_0) = \lim_{\Delta x \to 0} \frac{f(x_0+\Delta x) - f(x_0)}{\Delta x} \]</p>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">2. 切线方程推导</h3>
+                    <p>已知切线过点 \( P(x_0, f(x_0)) \) 且斜率为 \( f'(x_0) \)，根据直线的点斜式方程 \( y - y_0 = k(x - x_0) \)，可得切线方程：</p>
+                    <p class="mt-2 font-medium">\[ y - f(x_0) = f'(x_0)(x - x_0) \]</p>
+                    <p class="mt-2">特殊情况：若 \( f'(x_0) = 0 \)，切线为水平直线 \( y = f(x_0) \)；若 \( f'(x_0) \) 不存在（如尖点、垂直切线），切线为垂直直线 \( x = x_0 \)。</p>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">3. 求切线方程的步骤</h3>
+                    <ol class="list-decimal pl-6 space-y-2">
+                        <li>求函数在点 \( x_0 \) 处的函数值：\( y_0 = f(x_0) \)；</li>
+                        <li>求函数的导函数：\( f'(x) \)；</li>
+                        <li>求切线斜率：\( k = f'(x_0) \)；</li>
+                        <li>代入点斜式，整理得到切线方程。</li>
+                    </ol>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模型卡片4：正态分布 -->
+<div class="model-card group" data-category="statistics">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2">
+        <div class="h-0 bg-gray-100 relative overflow-hidden">
+            <canvas class="model-preview" data-model="normal"></canvas>
+        </div>
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">正态分布</h3>
+            <p class="text-gray-600 mb-4">展示正态分布曲线及其概率密度函数，理解均值、标准差对分布形状的影响。</p>
+            <a href="#" class="inline-flex items-center text-primary font-medium hover:underline">
+                查看详情 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="normalDetailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-transition opacity-0">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 transform transition-all duration-300 scale-95">
+        <button id="closeNormalModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+            <i class="fa fa-times text-xl"></i>
+        </button>
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">正态分布完整解析</h2>
+            <div class="space-y-4 text-gray-700">
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">1. 定义与公式</h3>
+                    <p>正态分布（高斯分布）是概率论中最重要的连续概率分布，概率密度函数为：</p>
+                    <p class="mt-2 font-medium text-center">\[ f(x) = \frac{1}{\sigma\sqrt{2\pi}}e^{-\frac{(x-\mu)^2}{2\sigma^2}} \]</p>
+                    <p class="mt-2">其中：\( \mu \) 为均值（分布中心），\( \sigma \) 为标准差（分布离散程度），\( \sigma^2 \) 为方差。</p>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">2. 核心性质</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>曲线呈钟形，关于 \( x=\mu \) 对称；</li>
+                        <li>均值、中位数、众数三者相等；</li>
+                        <li>68-95-99.7法则：约68%的数据落在 \( \mu\pm\sigma \) 内，95%落在 \( \mu\pm2\sigma \) 内，99.7%落在 \( \mu\pm3\sigma \) 内；</li>
+                        <li>总面积为1（概率和为1）。</li>
+                    </ul>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">3. 应用场景</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>自然现象：身高、体重、测量误差等；</li>
+                        <li>统计推断：假设检验、置信区间、回归分析；</li>
+                        <li>工程领域：质量控制、信号处理；</li>
+                        <li>机器学习：高斯朴素贝叶斯、正态初始化。</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模型卡片5：三维曲面 -->
+<div class="model-card group" data-category="geometry">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2">
+        <div class="h-0 bg-gray-100 relative overflow-hidden">
+            <canvas class="model-preview" data-model="surface"></canvas>
+        </div>
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">三维曲面</h3>
+            <p class="text-gray-600 mb-4">探索二元函数 \( z = f(x, y) \) 所形成的三维曲面，理解空间中的数学形态。</p>
+            <a href="#" class="inline-flex items-center text-primary font-medium hover:underline">
+                查看详情 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="3dDetailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-transition opacity-0">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 transform transition-all duration-300 scale-95">
+        <button id="close3dModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+            <i class="fa fa-times text-xl"></i>
+        </button>
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">三维曲面完整解析</h2>
+            <div class="space-y-4 text-gray-700">
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">1. 定义与表示</h3>
+                    <p>三维曲面是二元函数 \( z = f(x, y) \) 在三维直角坐标系中的几何表示，每个点 \( (x, y) \) 对应唯一的 \( z \) 值，构成空间曲面。</p>
+                    <p class="mt-2">示例函数（径向基函数）：</p>
+                    <p class="mt-1 font-medium text-center">\[ z = \frac{\sin(\sqrt{x^2 + y^2})}{\sqrt{x^2 + y^2}} \]</p>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">2. 核心性质</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>对称性：示例函数关于z轴对称（仅与 \( \sqrt{x^2 + y^2} \) 有关）；</li>
+                        <li>极限行为：\( x^2 + y^2 \to 0 \) 时，\( z \to 1 \)（重要极限 \( \lim_{r\to0}\frac{\sin r}{r}=1 \)）；</li>
+                        <li>周期性：z值随 \( \sqrt{x^2 + y^2} \) 呈正弦周期性变化；</li>
+                        <li>等高线：垂直于z轴的截面为同心圆，对应平面函数的等高线。</li>
+                    </ul>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">3. 应用场景</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>物理领域：电势分布、温度场、流体流速场；</li>
+                        <li>工程领域：地形建模、曲面设计、应力分布；</li>
+                        <li>机器学习：核函数、高维数据可视化、损失函数曲面；</li>
+                        <li>数学分析：多元函数极值、偏导数、重积分的几何意义。</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 模型卡片6：傅里叶级数 -->
+<div class="model-card group" data-category="calculus">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform group-hover:-translate-y-2">
+        <div class="h-0 bg-gray-100 relative overflow-hidden">
+            <canvas class="model-preview" data-model="fourier"></canvas>
+        </div>
+        <div class="p-6">
+            <h3 class="text-xl font-bold mb-2">傅里叶级数</h3>
+            <p class="text-gray-600 mb-4">展示如何通过正弦和余弦函数的叠加来逼近任意周期函数，理解频谱分析基础。</p>
+            <a href="#" class="inline-flex items-center text-primary font-medium hover:underline">
+                查看详情 <i class="fa fa-arrow-right ml-2"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+<div id="fourierDetailModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden modal-transition opacity-0">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto p-8 transform transition-all duration-300 scale-95">
+        <button id="closeFourierModalBtn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 transition-colors">
+            <i class="fa fa-times text-xl"></i>
+        </button>
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">傅里叶级数完整解析</h2>
+            <div class="space-y-4 text-gray-700">
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">1. 定义与公式</h3>
+                    <p>傅里叶级数将周期为 \( 2\pi \) 的周期函数分解为正弦和余弦函数的无穷级数：</p>
+                    <p class="mt-2 font-medium text-center">\[ f(x) = \frac{a_0}{2} + \sum_{n=1}^{\infty}\left(a_n\cos(nx) + b_n\sin(nx)\right) \]</p>
+                    <p class="mt-2">对于区间 \( [-\pi, \pi] \) 上的方波函数 \( f(x) = \begin{cases} 1, & 0 < x < \pi \\ -1, & -\pi < x < 0 \end{cases} \)，展开式为：</p>
+                    <p class="mt-1 font-medium text-center">\[ f(x) = \frac{4}{\pi}\left(\sin x + \frac{\sin 3x}{3} + \frac{\sin 5x}{5} + \cdots\right) \]</p>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">2. 核心性质</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>正交性：正弦/余弦函数系在 \( [-\pi, \pi] \) 上正交，是分解的理论基础；</li>
+                        <li>收敛性：满足狄利克雷条件的周期函数，傅里叶级数收敛到原函数（间断点收敛到左右极限平均值）；</li>
+                        <li>谐波分解：级数项对应不同频率的谐波，n越大频率越高；</li>
+                        <li>能量守恒：帕塞瓦尔定理，原函数与级数的能量相等。</li>
+                    </ul>
+                </section>
+                <section>
+                    <h3 class="text-xl font-semibold text-primary mb-2">3. 应用场景</h3>
+                    <ul class="list-disc pl-6 space-y-2">
+                        <li>信号处理：音频、图像、通信信号的频谱分析与滤波；</li>
+                        <li>工程领域：电路分析、振动分析、热传导方程求解；</li>
+                        <li>数学分析：偏微分方程（如波动方程、热方程）的求解；</li>
+                        <li>图像处理：傅里叶变换、边缘检测、图像压缩；</li>
+                        <li>机器学习：傅里叶特征、周期模式识别、时间序列分析。</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </div>
+</div>
+
+                 <!-- 加载更多按钮 -->
+                <div class="text-center mt-12">
+                       
+                    </button>
+                </div>
+             </div>
+        </section>
+
+                  <!-- 可视化演示区域 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学公式可视化工具（2D/3D/极坐标）</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 保留核心绘图样式，适配新结构 */
+        #interactive-chart {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 0.75rem;
+            background: white;
+        }
+        .canvas-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        /* 输入面板样式补充（匹配Tailwind风格） */
+        .input-panel {
+            max-width: 350px;
+            width: 100%;
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        .math-btn {
+            padding: 0.5rem;
+            border: 1px solid #e1e4e8;
+            border-radius: 0.375rem;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-size: 0.9375rem;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .math-btn:hover {
+            background: #e8f0fe;
+            border-color: #4285f4;
+            color: #4285f4;
+        }
+        .example-btn {
+            padding: 0.3125rem 0.625rem;
+            border: 1px solid #e1e4e8;
+            border-radius: 0.375rem;
+            background: white;
+            cursor: pointer;
+            font-size: 0.8125rem;
+            color: #333;
+            transition: all 0.2s;
+        }
+        .example-btn:hover {
+            background: #e8f0fe;
+            border-color: #4285f4;
+            color: #4285f4;
+        }
+        .error {
+            color: #d93025;
+            margin-top: 0.5rem;
+            font-size: 0.8125rem;
+            padding: 0.375rem;
+            background: #fef0f0;
+            border-radius: 0.375rem;
+            display: none;
+        }
+        .status {
+            margin-top: 0.5rem;
+            font-size: 0.8125rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-800 mb-2">数学公式可视化工具</h1>
+            <p class="text-gray-600">支持2D函数、3D曲面、极坐标图形绘制 | 实时预览 | 自定义样式</p>
+        </div>
+
+        <!-- 主容器：输入面板 + 可视化区域 -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- 输入面板 -->
+            <div class="input-panel">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fa fa-pencil-square-o text-blue-500"></i>
+                    公式输入面板
+                </h2>
+                
+                <div class="mb-4 p-3 bg-gray-50 rounded-lg">
+                    <h3 class="text-sm font-semibold text-blue-500 mb-2">快速示例</h3>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="example-btn" data-type="polar" data-formula="1+cos(θ)">心形线</button>
+                        <button class="example-btn" data-type="polar" data-formula="sin(3θ)">三叶玫瑰线</button>
+                        <button class="example-btn" data-type="polar" data-formula="3">圆</button>
+                        <button class="example-btn" data-type="2d" data-formula="sin(x)">正弦曲线</button>
+                        <button class="example-btn" data-type="2d" data-formula="x^2">抛物线</button>
+                        <button class="example-btn" data-type="3d" data-formula="x^2+y^2">抛物面</button>
+                        <button class="example-btn" data-type="3d" data-formula="sin(x)+cos(y)">波纹曲面</button>
+                    </div>
+                </div>
+                
+                <!-- 数学符号快捷按钮 -->
+                <div class="grid grid-cols-6 gap-2 mb-4">
+                    <button class="math-btn" data-char="x">x</button>
+                    <button class="math-btn" data-char="y">y</button>
+                    <button class="math-btn" data-char="θ">θ</button>
+                    <button class="math-btn" data-char="+">+</button>
+                    <button class="math-btn" data-char="-">-</button>
+                    <button class="math-btn" data-char="*">×</button>
+                    <button class="math-btn" data-char="/">÷</button>
+                    <button class="math-btn" data-char="^">^</button>
+                    <button class="math-btn" data-char="π">π</button>
+                    <button class="math-btn" data-char="e">e</button>
+                    <button class="math-btn" data-char="sin()">sin()</button>
+                    <button class="math-btn" data-char="cos()">cos()</button>
+                    <button class="math-btn" data-char="tan()">tan()</button>
+                    <button class="math-btn" data-char="√()">√()</button>
+                    <button class="math-btn" data-char="log()">log()</button>
+                    <button class="math-btn" data-char="exp()">exp()</button>
+                    <button class="math-btn" data-char="(|)">|</button>
+                    <button class="math-btn" data-char="(">(</button>
+                    <button class="math-btn" data-char=")">)</button>
+                    <button class="math-btn" data-char="=">=</button>
+                </div>
+                
+                <!-- 图形类型选择 -->
+                <select id="funcType" class="w-full p-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="2d">2D函数 (y = f(x))</option>
+                    <option value="3d">3D曲面 (z = f(x,y))</option>
+                    <option value="polar" selected>极坐标 (r = f(θ))</option>
+                </select>
+                
+                <!-- 公式输入框 -->
+                <textarea id="formulaInput" placeholder="输入公式，例如：2、sin(3θ)、1+cos(θ)等" 
+                          class="w-full h-16 p-2 border border-gray-300 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"></textarea>
+                
+                <!-- 样式设置 -->
+                <div class="flex gap-2 mb-3">
+                    <div class="flex-1">
+                        <label for="lineColor" class="text-xs text-gray-600 mb-1 block">线条颜色</label>
+                        <input type="color" id="lineColor" value="#4285f4" class="w-full h-9 border border-gray-300 rounded-lg cursor-pointer">
+                    </div>
+                    <div class="flex-1">
+                        <label for="lineWidth" class="text-xs text-gray-600 mb-1 block">线条宽度</label>
+                        <select id="lineWidth" class="w-full p-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1">1px</option>
+                            <option value="2" selected>2px</option>
+                            <option value="3">3px</option>
+                            <option value="4">4px</option>
+                            <option value="5">5px</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="flex gap-2 mb-3">
+                    <button id="drawBtn" class="flex-1 p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">绘制图形</button>
+                    <button id="clearBtn" class="flex-1 p-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors">清空</button>
+                </div>
+                
+                <!-- 错误提示 -->
+                <div class="error" id="errorMsg"></div>
+                
+                <!-- 状态提示 -->
+                <div class="status" id="statusMsg">
+                    <i class="fa fa-check-circle text-blue-500"></i>
+                    就绪：请输入公式后点击绘制按钮
+                </div>
+            </div>
+
+            <!-- 可视化区域 -->
+            <div class="lg:w-2/3 p-6 md:p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold">函数图像</h3>
+                    <div class="flex space-x-2">
+                        <button id="zoom-in" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            <i class="fa fa-search-plus text-gray-700"></i>
+                        </button>
+                        <button id="zoom-out" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            <i class="fa fa-search-minus text-gray-700"></i>
+                        </button>
+                        <button id="reset-view" class="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+                            <i class="fa fa-refresh text-gray-700"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="w-full h-[400px] md:h-[500px] bg-gray-50 rounded-xl border border-gray-200 p-4">
+                    <div class="canvas-wrapper">
+                        <canvas id="interactive-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const formulaInput = document.getElementById('formulaInput');
+        const funcType = document.getElementById('funcType');
+        const drawBtn = document.getElementById('drawBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const statusMsg = document.getElementById('statusMsg');
+        const canvas = document.getElementById('interactive-chart');
+        const ctx = canvas.getContext('2d');
+        const lineColor = document.getElementById('lineColor');
+        const lineWidth = document.getElementById('lineWidth');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const resetViewBtn = document.getElementById('reset-view');
+        const exampleBtns = document.querySelectorAll('.example-btn');
+        const mathBtns = document.querySelectorAll('.math-btn');
+        
+        // 控制变量
+        let rotationX = Math.PI / 4;
+        let rotationY = Math.PI / 4;
+        let scale = 30; // 缩放比例
+        let originX, originY;
+        let currentLineColor = '#4285f4';
+        let currentLineWidth = 2;
+        let isDragging = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        
+        // 设置画布实际尺寸（适配新容器）
+        function resizeCanvas() {
+            const wrapper = document.querySelector('.canvas-wrapper');
+            const rect = wrapper.getBoundingClientRect();
+            // 适配设备像素比，解决模糊问题
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            
+            // 保存原点位置（容器中心）
+            originX = rect.width / 2;
+            originY = rect.height / 2;
+            
+            // 重新绘制网格
+            drawGrid();
+        }
+        
+        // 更新样式设置
+        function updateStyleSettings() {
+            currentLineColor = lineColor.value;
+            currentLineWidth = parseInt(lineWidth.value);
+        }
+        
+        // 更新状态提示
+        function updateStatus(message, type = 'info') {
+            statusMsg.innerHTML = '';
+            let iconClass = '';
+            let iconColor = '';
+            
+            if (type === 'success') {
+                iconClass = 'fa-check-circle';
+                iconColor = 'text-green-500';
+            } else if (type === 'error') {
+                iconClass = 'fa-exclamation-circle';
+                iconColor = 'text-red-500';
+            } else {
+                iconClass = 'fa-info-circle';
+                iconColor = 'text-blue-500';
+            }
+            
+            statusMsg.innerHTML = `
+                <i class="fa ${iconClass} ${iconColor}"></i>
+                ${message}
+            `;
+        }
+        
+        // 初始化画布
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 监听样式变化
+        lineColor.addEventListener('change', () => {
+            updateStyleSettings();
+            if (formulaInput.value.trim()) drawGraph();
+        });
+        
+        lineWidth.addEventListener('change', () => {
+            updateStyleSettings();
+            if (formulaInput.value.trim()) drawGraph();
+        });
+        
+        // 绘制网格和坐标轴（修正镜像问题）
+        function drawGrid() {
+            const wrapper = document.querySelector('.canvas-wrapper');
+            const rect = wrapper.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            
+            // 保存当前状态
+            ctx.save();
+            // 重置变换
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 移动到画布中心 + 修正Y轴方向（解决镜像）
+            ctx.translate(originX, originY);
+            ctx.scale(1, -1); // Y轴向上为正（数学坐标系）
+            
+            // 绘制网格背景
+            ctx.fillStyle = '#fafafa';
+            ctx.fillRect(-width/2, -height/2, width, height);
+            
+            // 绘制网格
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            
+            // 垂直线 (X轴)
+            for (let x = -Math.floor(width/2/scale); x <= Math.floor(width/2/scale); x++) {
+                if (x === 0) continue;
+                ctx.beginPath();
+                ctx.moveTo(x * scale, -height/2);
+                ctx.lineTo(x * scale, height/2);
+                ctx.stroke();
+            }
+            
+            // 水平线 (Y轴)
+            for (let y = -Math.floor(height/2/scale); y <= Math.floor(height/2/scale); y++) {
+                if (y === 0) continue;
+                ctx.beginPath();
+                ctx.moveTo(-width/2, y * scale);
+                ctx.lineTo(width/2, y * scale);
+                ctx.stroke();
+            }
+            
+            // 绘制坐标轴
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            
+            // X轴
+            ctx.beginPath();
+            ctx.moveTo(-width/2, 0);
+            ctx.lineTo(width/2, 0);
+            ctx.stroke();
+            
+            // Y轴
+            ctx.beginPath();
+            ctx.moveTo(0, -height/2);
+            ctx.lineTo(0, height/2);
+            ctx.stroke();
+            
+            // 绘制刻度 - 修复文字镜像问题
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            
+            // X轴刻度
+            ctx.save();
+            ctx.scale(1, -1); // 临时翻转文字方向
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let x = -Math.floor(width/2/scale); x <= Math.floor(width/2/scale); x++) {
+                if (x !== 0 && x % 2 === 0) {
+                    ctx.fillText(x, x * scale, 15);
+                    // 绘制刻度线
+                    ctx.beginPath();
+                    ctx.moveTo(x * scale, -5);
+                    ctx.lineTo(x * scale, 5);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+            
+            // Y轴刻度
+            ctx.save();
+            ctx.scale(1, -1);
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let y = -Math.floor(height/2/scale); y <= Math.floor(height/2/scale); y++) {
+                if (y !== 0 && y % 2 === 0) {
+                    ctx.fillText(y, -8, -y * scale);
+                    // 绘制刻度线
+                    ctx.beginPath();
+                    ctx.moveTo(-5, y * scale);
+                    ctx.lineTo(5, y * scale);
+                    ctx.stroke();
+                }
+            }
+            ctx.restore();
+            
+
+            ctx.save();
+            ctx.scale(1, -1);
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('X', width/2 - 10, 15);
+            ctx.textAlign = 'right';
+            ctx.fillText('Y', -10, -height/2 + 20);
+            ctx.textAlign = 'left';
+            ctx.fillText('O', 10, 15);
+            ctx.restore();
+            
+
+            ctx.restore();
+        }
+        
+
+        function parseFormula(formula, type) {
+            if (!formula.trim()) {
+                throw new Error('公式不能为空');
+            }
+            
+            // 替换数学符号为JavaScript语法
+            let jsFormula = formula
+                .replace(/×/g, '*')
+                .replace(/÷/g, '/')
+                .replace(/π/g, 'Math.PI')
+                .replace(/e/g, 'Math.E')
+                .replace(/√/g, 'Math.sqrt')
+                .replace(/\^/g, '**')
+                .replace(/sin/g, 'Math.sin')
+                .replace(/cos/g, 'Math.cos')
+                .replace(/tan/g, 'Math.tan')
+                .replace(/log/g, 'Math.log10')
+                .replace(/exp/g, 'Math.exp')
+                .replace(/\|/g, 'Math.abs')
+                .trim();
+            
+            // 处理隐式乘法（比如 2x 变成 2*x）
+            jsFormula = jsFormula.replace(/(\d)([a-zA-Zθ])/g, '$1*$2');
+            
+            // 极坐标专用：将θ替换为theta
+            if (type === 'polar') {
+                jsFormula = jsFormula.replace(/θ/g, 'theta');
+            }
+            
+            try {
+                if (type === '2d') {
+                    const func = new Function('x', `return ${jsFormula}`);
+                    // 测试函数是否可执行
+                    func(0);
+                    return { type: '2d', func: func };
+                } else if (type === '3d') {
+                    const func = new Function('x', 'y', `return ${jsFormula}`);
+                    // 测试函数是否可执行
+                    func(0, 0);
+                    return { type: '3d', func: func };
+                } else if (type === 'polar') {
+                    const func = new Function('theta', `return ${jsFormula}`);
+                    // 测试函数是否可执行
+                    func(0);
+                    return { type: 'polar', func: func };
+                }
+            } catch (e) {
+                throw new Error('公式语法错误: ' + e.message);
+            }
+        }
+        
+        // 绘制2D函数图形（修复图形混乱问题）
+        function draw2DGraph(func) {
+            const step = 0.1;
+            const range = Math.floor(originX / scale);
+            
+            ctx.save();
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.translate(originX, originY);
+            ctx.scale(1, -1);
+            
+            // 设置样式
+            ctx.strokeStyle = currentLineColor;
+            ctx.lineWidth = currentLineWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            
+            let isFirstPoint = true;
+            let lastValidY = null;
+            
+            for (let x = -range; x <= range; x += step) {
+                try {
+                    const y = func(x);
+                    
+                    // 过滤无效值
+                    if (isNaN(y) || !isFinite(y) || Math.abs(y) > range * 2) {
+                        isFirstPoint = true;
+                        lastValidY = null;
+                        continue;
+                    }
+                    
+                    const px = x * scale;
+                    const py = y * scale;
+                    
+                    // 检查是否在画布范围内
+                    if (Math.abs(py) > originY) {
+                        isFirstPoint = true;
+                        lastValidY = null;
+                        continue;
+                    }
+                    
+                    if (isFirstPoint) {
+                        ctx.moveTo(px, py);
+                        isFirstPoint = false;
+                    } else {
+                        // 如果y值变化太大，开始新线段
+                        if (lastValidY !== null && Math.abs(y - lastValidY) > range) {
+                            ctx.moveTo(px, py);
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                    
+                    lastValidY = y;
+                } catch (e) {
+                    isFirstPoint = true;
+                    lastValidY = null;
+                }
+            }
+            
+            // 绘制路径
+            ctx.stroke();
+            ctx.restore();
+            
+            // 更新状态提示
+            updateStatus(`已绘制2D函数: y = ${formulaInput.value.trim()}`, 'success');
+        }
+        
+        // 绘制极坐标图形（修复图形混乱问题）
+        function drawPolarGraph(func) {
+            const step = 0.01;
+            const maxTheta = 2 * Math.PI;
+            let lastX = 0, lastY = 0;
+            
+            ctx.save();
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.translate(originX, originY);
+            ctx.scale(1, -1);
+            
+            // 设置样式
+            ctx.strokeStyle = currentLineColor;
+            ctx.lineWidth = currentLineWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.beginPath();
+            
+            let isFirstPoint = true;
+            
+            for (let theta = 0; theta <= maxTheta; theta += step) {
+                try {
+                    const r = func(theta);
+                    
+                    // 过滤无效值
+                    if (isNaN(r) || !isFinite(r) || r < 0) continue;
+                    
+                    // 极坐标转笛卡尔坐标
+                    const x = r * Math.cos(theta) * scale;
+                    const y = r * Math.sin(theta) * scale;
+                    
+                    // 检查是否在画布范围内
+                    const wrapper = document.querySelector('.canvas-wrapper');
+                    const rect = wrapper.getBoundingClientRect();
+                    if (Math.abs(x) > rect.width/2 || Math.abs(y) > rect.height/2) {
+                        isFirstPoint = true;
+                        continue;
+                    }
+                    
+                    if (isFirstPoint) {
+                        ctx.moveTo(x, y);
+                        isFirstPoint = false;
+                    } else {
+                        const distance = Math.sqrt(Math.pow(x - lastX, 2) + Math.pow(y - lastY, 2));
+                        if (distance < scale * 5) { // 增加连接距离
+                            ctx.lineTo(x, y);
+                        } else {
+                            ctx.moveTo(x, y);
+                        }
+                    }
+                    
+                    lastX = x;
+                    lastY = y;
+                } catch (e) {
+                    continue;
+                }
+            }
+            
+            // 绘制路径
+            ctx.stroke();
+            
+            // 绘制极坐标辅助圆
+            if (originX > 100 && originY > 100) {
+                ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+                ctx.lineWidth = 1;
+                for (let r = 2; r <= 10; r += 2) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, r * scale, 0, 2 * Math.PI);
+                    ctx.stroke();
+                }
+            }
+            
+            ctx.restore();
+            
+            // 更新状态提示
+            updateStatus(`已绘制极坐标图形: r = ${formulaInput.value.trim()}`, 'success');
+        }
+        
+        // 绘制3D曲面（修复投影计算错误）
+        function draw3DSurface(func) {
+            const step = 0.3; // 增加步长以提高性能
+            const range = 6;
+            
+            ctx.save();
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.translate(originX, originY);
+            ctx.scale(1, -1);
+            
+            ctx.strokeStyle = currentLineColor;
+            ctx.lineWidth = currentLineWidth;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // 预计算旋转矩阵
+            const cosX = Math.cos(rotationX);
+            const sinX = Math.sin(rotationX);
+            const cosY = Math.cos(rotationY);
+            const sinY = Math.sin(rotationY);
+            
+            // 用于收集点，避免重复计算
+            const points = [];
+            
+            // 收集所有有效点
+            for (let x = -range; x <= range; x += step) {
+                const colPoints = [];
+                for (let y = -range; y <= range; y += step) {
+                    try {
+                        const z = func(x, y);
+                        
+                        if (isNaN(z) || !isFinite(z)) continue;
+                        
+                        // 正确的3D投影计算
+                        // 绕X轴旋转
+                        const y1 = y * cosX - z * sinX;
+                        const z1 = y * sinX + z * cosX;
+                        
+                        // 绕Y轴旋转
+                        const x2 = x * cosY + z1 * sinY;
+                        const z2 = -x * sinY + z1 * cosY; // z2是深度信息，这里只用于过滤
+                        
+                        // 投影到2D
+                        const px = x2 * scale;
+                        const py = y1 * scale;
+                        
+                        // 检查是否在可见范围内
+                        if (Math.abs(px) > originX * 1.5 || Math.abs(py) > originY * 1.5) continue;
+                        
+                        colPoints.push({ px, py, valid: true });
+                    } catch (e) {
+                        colPoints.push({ valid: false });
+                    }
+                }
+                points.push(colPoints);
+            }
+            
+            // 绘制X方向曲线
+            for (let i = 0; i < points.length; i++) {
+                ctx.beginPath();
+                let firstPoint = true;
+                
+                for (let j = 0; j < points[i].length; j++) {
+                    const point = points[i][j];
+                    if (point.valid) {
+                        if (firstPoint) {
+                            ctx.moveTo(point.px, point.py);
+                            firstPoint = false;
+                        } else {
+                            ctx.lineTo(point.px, point.py);
+                        }
+                    } else {
+                        if (!firstPoint) {
+                            ctx.stroke();
+                            ctx.beginPath();
+                            firstPoint = true;
+                        }
+                    }
+                }
+                if (!firstPoint) {
+                    ctx.stroke();
+                }
+            }
+            
+            // 绘制Y方向曲线
+            for (let j = 0; j < points[0].length; j++) {
+                ctx.beginPath();
+                let firstPoint = true;
+                
+                for (let i = 0; i < points.length; i++) {
+                    const point = points[i][j];
+                    if (point && point.valid) {
+                        if (firstPoint) {
+                            ctx.moveTo(point.px, point.py);
+                            firstPoint = false;
+                        } else {
+                            ctx.lineTo(point.px, point.py);
+                        }
+                    } else {
+                        if (!firstPoint) {
+                            ctx.stroke();
+                            ctx.beginPath();
+                            firstPoint = true;
+                        }
+                    }
+                }
+                if (!firstPoint) {
+                    ctx.stroke();
+                }
+            }
+            
+            ctx.restore();
+            
+            // 更新状态提示
+            updateStatus(`已绘制3D曲面: z = ${formulaInput.value.trim()} (使用鼠标拖动旋转)`, 'success');
+        }
+        
+        // 统一绘制入口
+        function drawGraph() {
+            try {
+                // 清空错误提示
+                errorMsg.style.display = 'none';
+                errorMsg.textContent = '';
+                
+                // 更新样式设置
+                updateStyleSettings();
+                
+                // 清空画布并绘制网格
+                drawGrid();
+                
+                // 获取公式和类型
+                const formula = formulaInput.value.trim();
+                const type = funcType.value;
+                
+                if (!formula) {
+                    throw new Error('请输入公式');
+                }
+                
+                // 解析公式
+                const parsed = parseFormula(formula, type);
+                
+                // 根据类型绘制不同图形
+                if (type === '2d') {
+                    draw2DGraph(parsed.func);
+                } else if (type === '3d') {
+                    draw3DSurface(parsed.func);
+                } else if (type === 'polar') {
+                    drawPolarGraph(parsed.func);
+                }
+                
+            } catch (e) {
+                // 显示错误信息
+                errorMsg.style.display = 'block';
+                errorMsg.textContent = e.message;
+                updateStatus('绘制失败：' + e.message, 'error');
+            }
+        }
+        
+        // 清空画布
+        function clearCanvas() {
+            formulaInput.value = '';
+            errorMsg.style.display = 'none';
+            errorMsg.textContent = '';
+            drawGrid();
+            updateStatus('画布已清空，等待输入公式', 'info');
+        }
+        
+        // 缩放控制
+        function zoom(direction) {
+            if (direction === 'in') {
+                scale = Math.min(scale * 1.2, 100);
+            } else if (direction === 'out') {
+                scale = Math.max(scale * 0.8, 10);
+            }
+            
+            if (formulaInput.value.trim()) {
+                drawGraph();
+            } else {
+                drawGrid();
+            }
+            updateStatus(`缩放比例: ${Math.round(scale)}`, 'info');
+        }
+        
+        // 重置视图
+        function resetView() {
+            rotationX = Math.PI / 4;
+            rotationY = Math.PI / 4;
+            scale = 30;
+            
+            if (formulaInput.value.trim()) {
+                drawGraph();
+            } else {
+                drawGrid();
+            }
+            updateStatus('视图已重置', 'info');
+        }
+        
+        // 示例按钮点击事件
+        function handleExampleClick(e) {
+            const btn = e.target;
+            const type = btn.dataset.type;
+            const formula = btn.dataset.formula;
+            
+            // 设置类型和公式
+            funcType.value = type;
+            formulaInput.value = formula;
+            
+            // 绘制图形
+            drawGraph();
+        }
+        
+        // 数学符号按钮点击事件
+        function handleMathBtnClick(e) {
+            const char = e.target.dataset.char;
+            const cursorPos = formulaInput.selectionStart;
+            const currentValue = formulaInput.value;
+            
+            // 在光标位置插入字符
+            formulaInput.value = 
+                currentValue.substring(0, cursorPos) + 
+                char + 
+                currentValue.substring(cursorPos);
+            
+            // 移动光标到插入字符后
+            formulaInput.focus();
+            formulaInput.selectionStart = formulaInput.selectionEnd = cursorPos + char.length;
+        }
+        
+        // 鼠标交互（3D旋转）
+        function setupMouseInteraction() {
+            canvas.addEventListener('mousedown', function(e) {
+                if (funcType.value === '3d' && formulaInput.value.trim()) {
+                    isDragging = true;
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                }
+            });
+            
+            canvas.addEventListener('mousemove', function(e) {
+                if (isDragging) {
+                    const deltaX = e.clientX - lastMouseX;
+                    const deltaY = e.clientY - lastMouseY;
+                    
+                    rotationY += deltaX * 0.01;
+                    rotationX += deltaY * 0.01;
+                    
+                    // 限制X轴旋转角度
+                    rotationX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotationX));
+                    
+                    lastMouseX = e.clientX;
+                    lastMouseY = e.clientY;
+                    
+                    drawGraph();
+                }
+            });
+            
+            canvas.addEventListener('mouseup', function() {
+                isDragging = false;
+            });
+            
+            canvas.addEventListener('mouseleave', function() {
+                isDragging = false;
+            });
+        }
+        
+        // 绑定事件
+        drawBtn.addEventListener('click', drawGraph);
+        clearBtn.addEventListener('click', clearCanvas);
+        zoomInBtn.addEventListener('click', () => zoom('in'));
+        zoomOutBtn.addEventListener('click', () => zoom('out'));
+        resetViewBtn.addEventListener('click', resetView);
+        
+        // 绑定示例按钮事件
+        exampleBtns.forEach(btn => btn.addEventListener('click', handleExampleClick));
+        
+        // 绑定数学符号按钮事件
+        mathBtns.forEach(btn => btn.addEventListener('click', handleMathBtnClick));
+        
+        // 设置鼠标交互
+        setupMouseInteraction();
+        
+        // 初始化绘制网格
+        drawGrid();
+    </script>
+ 
+
+
+</body>
+</html>
